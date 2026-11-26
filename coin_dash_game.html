@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coin Dash — Mini Game Prototype</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101a35;color:#f4f6ff;font:16px system-ui,sans-serif}
+  main{width:min(92vw,720px);padding:24px;background:#1b2a50;border:1px solid #52648f;border-radius:18px;box-shadow:0 18px 50px #0006}
+  h1{margin:0 0 6px;font-size:28px} p{color:#c7d2f0;margin:6px 0 16px}
+  canvas{display:block;width:100%;background:#0c1530;border:2px solid #7184b7;border-radius:12px;touch-action:none}
+  .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:14px}
+  button{background:#ffd34e;color:#18213c;border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer}
+  #status{font-weight:700;color:#ffe28a}
+  .help{font-size:13px;color:#aebce0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Coin Dash</h1>
+  <p>A tiny original arcade prototype: collect the coins and avoid the moving hazards.</p>
+  <canvas id="game" width="640" height="360" aria-label="Coin Dash game"></canvas>
+  <div class="bar"><span>Score: <strong id="score">0</strong></span><span id="status">Ready?</span><button id="restart">Restart</button></div>
+  <p class="help">Move with WASD or arrow keys. On a phone, drag your finger on the play area. Collect 10 coins to win; touching a red hazard ends the run.</p>
+</main>
+<script>
+const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d');
+const scoreEl=document.querySelector('#score'),statusEl=document.querySelector('#status');
+const keys={}; let player,coin,hazards,score,over,last=0;
+function rand(a,b){return Math.random()*(b-a)+a}
+function placeCoin(){coin={x:rand(24,616),y:rand(24,336),r:9}}
+function reset(){player={x:70,y:180,r:12,speed:210};hazards=[{x:330,y:90,r:15,vx:125,vy:95},{x:490,y:260,r:13,vx:-105,vy:120}];score=0;over=false;scoreEl.textContent=score;statusEl.textContent='Collect 10 coins!';placeCoin()}
+function draw(){
+ ctx.clearRect(0,0,640,360);
+ ctx.strokeStyle='#24365f';ctx.lineWidth=1;
+ for(let x=20;x<640;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,360);ctx.stroke()}
+ for(let y=20;y<360;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(640,y);ctx.stroke()}
+ ctx.fillStyle='#ffd34e';ctx.beginPath();ctx.arc(coin.x,coin.y,coin.r,0,Math.PI*2);ctx.fill();
+ hazards.forEach(h=>{ctx.fillStyle='#ff657a';ctx.beginPath();ctx.arc(h.x,h.y,h.r,0,Math.PI*2);ctx.fill()});
+ ctx.fillStyle='#65e0b2';ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+ if(over){ctx.fillStyle='#081127cc';ctx.fillRect(0,0,640,360);ctx.fillStyle='white';ctx.textAlign='center';ctx.font='bold 30px system-ui';ctx.fillText(score>=10?'YOU WIN!':'GAME OVER',320,170);ctx.font='16px system-ui';ctx.fillText('Press Restart to play again',320,202)}
+}
+function update(dt){
+ if(over)return;
+ let dx=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0),dy=(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0);
+ const len=Math.hypot(dx,dy)||1;player.x=Math.max(player.r,Math.min(640-player.r,player.x+dx/len*player.speed*dt));player.y=Math.max(player.r,Math.min(360-player.r,player.y+dy/len*player.speed*dt));
+ hazards.forEach(h=>{h.x+=h.vx*dt;h.y+=h.vy*dt;if(h.x<h.r||h.x>640-h.r)h.vx*=-1;if(h.y<h.r||h.y>360-h.r)h.vy*=-1;if(Math.hypot(player.x-h.x,player.y-h.y)<player.r+h.r)over=true});
+ if(Math.hypot(player.x-coin.x,player.y-coin.y)<player.r+coin.r){score++;scoreEl.textContent=score;placeCoin();if(score>=10)over=true}
+ if(over)statusEl.textContent=score>=10?'Nice! You won.':'Try again!';
+}
+function loop(t){let dt=Math.min((t-last)/1000||0,0.04);last=t;update(dt);draw();requestAnimationFrame(loop)}
+window.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});
+window.addEventListener('keyup',e=>keys[e.key]=false);
+let dragging=false;
+canvas.addEventListener('pointerdown',e=>{dragging=true;canvas.setPointerCapture(e.pointerId);movePointer(e)});
+canvas.addEventListener('pointermove',e=>{if(dragging)movePointer(e)});
+canvas.addEventListener('pointerup',()=>dragging=false);
+function movePointer(e){const r=canvas.getBoundingClientRect();player.x=(e.clientX-r.left)*640/r.width;player.y=(e.clientY-r.top)*360/r.height}
+document.querySelector('#restart').addEventListener('click',reset);
+reset();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
